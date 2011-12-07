@@ -10,6 +10,7 @@ class Supplier extends CI_Controller {
    }
    
    public function index( $id = null ){
+	  if($id == 'blah') { $id = 0;  } // just a test
       $data = array();
       if( $this->session->flashdata( 'message' ) ){
           $data['system_message'] = $this->session->flashdata( 'message' );
