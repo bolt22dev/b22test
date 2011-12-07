@@ -1,0 +1,98 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+class Supplier_model extends CI_Model {
+   
+   function __contruct() {
+      parent::__construct();
+   }
+   
+   function getAllSuppliers($paramArr) {
+      $this->load->driver('cache', array('adapter' => 'apc'));
+      
+      $start = isset($paramArr['start'])?$paramArr['start']:NULL;
+      $limit = isset($paramArr['limit'])?$paramArr['start']:NULL;
+      $sortField = isset($paramArr['sortField'])?$paramArr['sortField']:'supname';
+      $sortOrder = isset($paramArr['sortOrder'])?$paramArr['sortOrder']:'desc';
+      $whereParam = isset($paramArr['whereParam'])?$paramArr['whereParam']:NULL;
+      $reload = isset($paramArr['reload'])?$paramArr['reload']:FALSE;
+      
+      if(!$reload) {
+         $cachedSupplierList = $this->getSupplierFromCache();
+         if($cachedSupplierList) return $cachedSupplierList;
+      }
+      
+      if(!empty($start) && !empty($limit)) $optLimit = "limit $start,$limit";
+      else $optLimit = NULL;
+      
+      if(!empty($whereParam)) $whereParam = "and (".$whereParam.")";
+      $whereClause = "where true ".$whereParam;
+      
+      $SQL = "SELECT supid, supname, supadd, supcontact_name, supmobileno, suplandlineno, supfax FROM tblsupplier $whereClause order by $sortField $sortOrder $optLimit ";
+      $result = $this->db->query($SQL);
+      if($result->num_rows() > 0) {
+         $supplierList = $result->result();
+         $this->deleteSupplierCache();
+         $this->cache->save(CACHE_SUPPLIERLIST, $supplierList, 60);
+         return $supplierList;
+      } else {
+         return null;
+      }
+   }
+   
+   function createSupplierInfo($aSupplier) {
+      $supplier_id = newPrimaryKeySequence('supid');
+      $SQL = "INSERT INTO tblsupplier VALUES (?,?,?,?,?,?,?);";
+      $values = array(
+                  $supplier_id,
+                  $aSupplier['supplier_name'],
+                  $aSupplier['address'],
+                  $aSupplier['contact_name'],
+                  $aSupplier['mobile_no'],
+                  $aSupplier['landline_no'],
+                  $aSupplier['fax']
+      );
+      $this->db->query($SQL,$values);
+      $this->deleteSupplierCache();
+      if($this->db->affected_rows() > 0) return $supplier_id;
+      else return null;
+   }
+   
+   function updateSupplierInfo($aSupplier) {
+      $SQL = "UPDATE tblsupplier SET supname=?,supadd=?,supcontact_name=?,supmobileno=?,suplandlineno=?,supfax=? where supid=?";
+      $values = array($aSupplier['supplier_name'],$aSupplier['address'],$aSupplier['contact_name'],$aSupplier['mobile_no'],$aSupplier['landline_no'],$aSupplier['fax'],$aSupplier['supplier_id']);
+      $this->db->query($SQL,$values);
+      $this->deleteSupplierCache();   
+      if($this->db->affected_rows() > 0) return TRUE;
+      else return FALSE;
+   }
+   
+   function getSupplierInfoById($supplier_id) {
+      $SQL = "SELECT supid, supname, supadd, supcontact_name, supmobileno, suplandlineno, supfax FROM tblsupplier WHERE supid=?";
+      $values = array($supplier_id);
+      $result = $this->db->query($SQL,$values);
+      if($result->num_rows() > 0) return $result->result();
+      else return NULL;
+   }
+   
+   function deleteSupplierInfo($supplier_id) {
+      $SQL = "delete from tblsupplier where supid = ?";
+      $values = array($supplier_id);
+      $this->db->query($SQL,$values);
+      $this->deleteSupplierCache();
+      if($this->db->affected_rows() > 0) return TRUE;
+      else return FALSE;
+   }
+   
+   private function deleteSupplierCache() {
+      $this->load->driver('cache', array('adapter' => 'apc'));   
+      $this->cache->delete(CACHE_SUPPLIERLIST);
+   }
+   
+   private function getSupplierFromCache() {
+      $this->load->driver('cache', array('adapter' => 'apc')); 
+      $res = $this->cache->get(CACHE_SUPPLIERLIST);
+      return $res;
+   }
+   
+   
+}

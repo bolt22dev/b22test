@@ -1,0 +1,88 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+class Province_model extends CI_Model {
+   
+   function __contruct() {
+      parent::__construct();
+   }
+   
+   function getAllProvinces($paramArr) {
+      $this->load->driver('cache', array('adapter' => 'apc'));
+      
+      $start = isset($paramArr['start'])?$paramArr['start']:NULL;
+      $limit = isset($paramArr['limit'])?$paramArr['start']:NULL;
+      $sortField = isset($paramArr['sortField'])?$paramArr['sortField']:'province_name';
+      $sortOrder = isset($paramArr['sortOrder'])?$paramArr['sortOrder']:'asc';
+      $whereParam = isset($paramArr['whereParam'])?$paramArr['whereParam']:NULL;
+      $reload = isset($paramArr['reload'])?$paramArr['reload']:FALSE;
+      
+      if(!$reload) {
+         $cachedProvinceList = $this->getProvinceFromCache();
+         if($cachedProvinceList) return $cachedProvinceList;
+      }
+      
+      if(!empty($start) && !empty($limit)) $optLimit = "limit $start,$limit";
+      else $optLimit = NULL;
+      
+      if(!empty($whereParam)) $whereParam = "and (".$whereParam.")";
+      $whereClause = "where true ".$whereParam;
+      
+      $SQL = "SELECT province_id, province_name FROM tblprovince $whereClause order by $sortField $sortOrder $optLimit ";
+      $result = $this->db->query($SQL);
+      if($result->num_rows() > 0) {
+         $provinceList = $result->result();
+         $this->deleteProvinceCache();
+         $this->cache->save(CACHE_PROVINCELIST, $provinceList, 60);
+         return $provinceList;
+      } else {
+         return null;
+      }
+   }
+   
+   function createProvinceInfo( $aProvince ){
+      $province_id = newPrimaryKeySequence('province_id');      
+      $SQL = "INSERT INTO tblprovince VALUES (?,?)";
+      $values = array( $province_id, $aProvince['province_name'] );
+      $this->db->query($SQL,$values);
+      $this->deleteProvinceCache();
+      if($this->db->affected_rows() > 0) return $province_id;
+      else return NULL;
+   }
+   
+   function updateProvinceInfo($aProvince) {
+      $SQL = "UPDATE tblprovince SET province_name=? where province_id=?";
+      $values = array($aProvince['province_name'],$aProvince['province_id']);
+      $this->db->query($SQL,$values);
+      $this->deleteProvinceCache();   
+      if($this->db->affected_rows() > 0) return TRUE;
+      else return FALSE;
+   }
+   
+   function getProvinceInfoById($province_id) {
+      $SQL = "SELECT province_id, province_name FROM tblprovince WHERE province_id=?";
+      $values = array($province_id);
+      $result = $this->db->query($SQL,$values);
+      if($result->num_rows() > 0) return $result->result();
+      else return NULL;
+   }
+   
+   function deleteProvinceInfo($province_id) {
+      $SQL = "delete from tblprovince where province_id = ?";
+      $values = array($province_id);
+      $this->db->query($SQL,$values);
+      $this->deleteProvinceCache();
+      if($this->db->affected_rows() > 0) return TRUE;
+      else return FALSE;
+   }
+   
+   private function deleteProvinceCache() {
+      $this->load->driver('cache', array('adapter' => 'apc'));   
+      $this->cache->delete(CACHE_PROVINCELIST);
+   }
+   
+   private function getProvinceFromCache() {
+      $this->load->driver('cache', array('adapter' => 'apc')); 
+      $res = $this->cache->get(CACHE_PROVINCELIST);
+      return $res;
+   }
+}

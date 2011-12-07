@@ -1,0 +1,133 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+class Outlet extends CI_Controller {
+	
+	public function __construct()
+    {
+        parent::__construct();
+        $this->load->helper( 'grid' );
+        $this->load->model('outlet_model'); 
+    }
+    
+    public function index( $id = null ){
+       $this->auth_model->requireLogin(); 
+       $data = array();
+       if( $this->session->flashdata( 'message' ) ){
+          $data['system_message'] = $this->session->flashdata( 'message' );
+       }
+       if( !empty( $id ) ){
+          $aList = $this->outlet_model->getOutletInfoById($id);
+          foreach( $aList as $sList ){
+             $data['outlet_id']   = $sList->outid;
+             $data['outlet_name'] = $sList->outname;
+             $data['address']     = $sList->address;
+             $data['contact_no']  = $sList->contactno;
+          }
+       }
+       
+       $this->load->view( 'outlet/form', $data );
+    }
+    
+    public function viewAll() {
+		$this->auth_model->requireLogin();
+      $aData = array(
+            'set_columns' => array( 
+                                 array(
+                                    'label'  => 'Outlet ID',
+                                    'name'   => 'outid',
+                                    'width'  => 55,
+                                    'size'   => 10
+                                 ),
+                                 array(
+                                    'label'  => 'Outlet Name',
+                                    'name'   => 'outname',
+                                    'width'  => 200,
+                                    'size'   => 10
+                                 ),
+                                 array(
+                                    'label'  => 'Address',
+                                    'name'   => 'address',
+                                    'width'  => 200,
+                                    'size'   => 10
+                                 ),
+                                 array(
+                                    'label'  => 'Contact #',
+                                    'name'   => 'contactno',
+                                    'width'  => 200,
+                                    'size'   => 10
+                                 )
+            ),
+            'div_name'     => 'grid',
+            'source'       => 'outlet/outletList/',
+            'sort_name'    => 'outname',
+            'add_url'      => 'outlet/index/',
+            'edit_url'     => 'outlet/index/',
+            'delete_url'   => 'outlet/exec/del',
+            'caption'      => 'Outlet Maintenance',
+            'primary_key'  => 'outid',
+            'grid_height'  => 230
+      );
+      $data['outletGrid'] = buildGrid($aData);
+		$this->load->view('outlet/outletlist',$data);
+	}
+   
+   public function outletList() {
+      buildGridData(
+         array(
+            'model'   => 'outlet_model',
+            'method'  => 'getAllOutlets',
+            'pkid'    => 'outid',
+            'columns' => array( 'outid','outname','address', 'contactno' )
+         )
+      );
+   }
+	
+	public function exec( $action, $id = null ) {
+		//$action = $this->input->post('oper',TRUE);
+		switch($action) {
+		case 'add':
+         $this->form_validation->set_rules('outlet_name','Outlet Name','required|xss_clean');
+         $this->form_validation->set_rules('address','Address','required|xss_clean');
+         $this->form_validation->set_rules('contact_no', 'Contact #', 'required|trim|xss_clean');
+         if($this->form_validation->run()) {
+			   $outletInfos['outlet_name'] = $this->input->post( 'outlet_name', TRUE );
+			   $outletInfos['address']     = $this->input->post( 'address', TRUE ); 
+			   $outletInfos['contact_no']  = $this->input->post( 'contact_no', TRUE );
+			   $outlet_id = $this->outlet_model->createOutletInfo($outletInfos);
+            if( !empty( $outlet_id ) ){
+               $this->session->set_flashdata( 'message', lang('successAdd') ); 
+               redirect(base_url() . 'outlet/index/' . $outlet_id); 
+            } else {
+               $this->session->set_flashdata( 'message', 'There was an error inserting the data.' ); 
+            }
+         } else {
+            $this->session->set_flashdata( 'message', validation_errors() );  
+            redirect(base_url() . 'outlet/index/'); 
+         }
+			break;
+		case 'edit':
+         $this->form_validation->set_rules('outlet_name','Agent Name','required|xss_clean');
+         $this->form_validation->set_rules('address','Alias','required|xss_clean');
+         $this->form_validation->set_rules('contact_no', 'Contact #', 'required|trim|xss_clean');
+         $outletInfos['outlet_id']   = $this->input->post( 'id', TRUE );
+         $outletInfos['outlet_name'] = $this->input->post( 'outlet_name', TRUE );
+         $outletInfos['address']     = $this->input->post( 'address', TRUE ); 
+         $outletInfos['contact_no']  = $this->input->post( 'contact_no', TRUE );
+         if($this->form_validation->run()) {                          
+            $this->outlet_model->updateOutletInfo($outletInfos);
+            $this->session->set_flashdata( 'message', lang('successAdd') ); 
+            redirect(base_url() . 'outlet/index/' . $outletInfos['outlet_id']);
+         } else {
+            $this->session->set_flashdata( 'message', validation_errors() );  
+            $this->load->view( 'outlet/form', $outletInfos );
+         }
+			
+			break;
+		case 'del':	
+			$outletId = $this->input->post('recid',TRUE);
+			$this->outlet_model->deleteOutletInfo($outletId);
+			break;
+		}
+	}
+   
+}

@@ -1,0 +1,145 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+class salesorder extends CI_Controller {
+   
+   public function __construct()
+   {
+        parent::__construct();
+        $this->load->helper( 'grid' );
+        $this->load->model('salesorder_model');
+   }
+   
+   public function index( $id = null ){
+      $this->auth_model->requireLogin(); 
+      $data = array();
+      if( $this->session->flashdata( 'message' ) ){
+          $data['system_message'] = $this->session->flashdata( 'message' );
+      }
+      if( !empty( $id ) ){
+          $res = $this->salesorder_model->getSalesOrderById($id);
+          $data['soid'] = $res->soid;
+          $data['transdate'] = $res->transdate;
+          $data['custid'] = $res->custid;
+          $data['agentid'] = $res->agentid;
+          $data['outid'] = $res->outid;
+          $data['userid'] = $res->userid;
+          $data['agentList'] = listAgents();
+          $data['customerList'] = listCustomers();
+          $data['userList'] = listUsers();
+      }
+      $this->load->view( 'salesorder/form', $data );
+   }
+   
+   public function exec( $action, $id = null ){
+		$this->form_validation->set_rules('custid','Customer Name','required|xss_clean');
+		$this->form_validation->set_rules('agentid','Sales Agent','required|xss_clean');
+		$this->form_validation->set_rules('userid','User Name','required|xss_clean');
+		$this->form_validation->set_rules('transdate','Transaction Date','required|xss_clean');
+		$this->form_validation->set_rules('remarks','Remarks','xss_clean');
+         
+		$data = array();
+		$data['custid'] = $this->input->post( 'custid', TRUE );
+		$data['agentid'] = $this->input->post( 'agentid', TRUE );
+		$data['userid'] = $this->input->post( 'userid', TRUE );
+		$data['transdate'] = $this->input->post( 'transdate', TRUE );
+      
+      switch( $action ){
+	
+         case 'add' :
+
+            if($this->form_validation->run()) {
+				$soid = $this->salesorder_model->createSalesOrder($data);  
+				if( !empty( $soid ) ){
+                  $this->session->set_flashdata( 'message', lang('successAdd') ); 
+                  redirect(base_url() . 'salesorder/index/' . $soid); 
+				} else {
+                  $this->session->set_flashdata( 'message', 'There was an error inserting the data.' ); 
+				}
+            } else {
+               $this->session->set_flashdata( 'message', validation_errors() );                 
+               $this->load->view( 'salesorder/form', $data );
+            }
+         break;
+         case 'edit' :
+         
+            if($this->form_validation->run()) { 
+               $data['soid'] = $this->session->post('soid',TRUE);
+               $this->salesorder_model->updateSalesOrder($data);   
+               $this->session->set_flashdata( 'message', lang('successAdd') ); 
+               redirect(base_url() . 'salesorder/index/' . $id); 
+            } else {
+               $this->session->set_flashdata( 'message', validation_errors() );                 
+               $this->load->view( 'salesorder/form', $data );
+            }
+         break;
+         case 'del' :
+            $soid = $this->input->post('recid',TRUE);
+            $this->salesorder_model->deleteSalesOrder($soid);
+         break;
+      }
+   }
+   
+   public function viewAll(){
+      $this->auth_model->requireLogin();
+      $aData = array(
+            'set_columns' => array( 
+                                 array(
+                                    'label'  => 'SO Id',
+                                    'name'   => 'soid',
+                                    'width'  => 100,
+                                    'size'   => 10
+                                 ),
+                                 array(
+                                       'label'  => 'PO No',
+                                       'name'   => 'pono',
+                                       'width'  => 100,
+                                       'size'   => 10
+                                 ),
+                                 array(
+                                       'label'  => 'Transaction Date',
+                                       'name'   => 'transdate',
+                                       'width'  => 150,
+                                       'size'   => 10
+                                 ),
+                                 array(
+                                       'label'  => 'Customer',
+                                       'name'   => 'custname',
+                                       'width'  => 380,
+                                       'size'   => 10
+                                 )
+            ),
+            'div_name'     => 'grid',
+            'source'       => 'salesorder/salesorderList/',
+            'sort_name'    => 'custname',
+            'add_url'      => 'salesorder/index/',
+            'edit_url'     => 'salesorder/index/',
+            'delete_url'   => 'salesorder/exec/del',
+            'caption'      => 'Sales Order Transactions',
+            'primary_key'  => 'soid',
+            'subgrid'	   => TRUE,
+            'subgrid_url'  => 'salesorder/subgridList/',
+            'subgrid_columnnames' => "['Product Id','Description','Qty','Unit','Price']",
+            'subgrid_columnwidth' => "[100,380,100,100,100]",
+            'grid_height'  => 230
+      );
+      $data['salesOrderGrid'] = buildGrid( $aData );
+      $this->load->view('salesorder/salesorderlist',$data);
+   }
+   
+   public function salesorderList() {
+      buildGridData(
+         array(
+            'model'   => 'salesorder_model',
+            'method'  => 'getAllSalesOrder',
+            'pkid'    => 'soid',
+            'columns' => array( 'soid','pono','transdate','custname' )
+         )
+      );
+   }
+   
+   public function subgridList() {
+	   $id = $this->input->get('id',TRUE);
+	   
+	   
+	}
+}

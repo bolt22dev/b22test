@@ -1,0 +1,146 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+class Agent extends CI_Controller {
+	
+	public function __construct()
+   {
+        parent::__construct();
+        $this->load->helper( 'grid' );
+        $this->load->model('agent_model');
+   }
+   
+   public function index( $id = null ){
+      $data = array();
+	// TEST COMMIT MO HAHAHAHA
+      $this->auth_model->requireLogin(); 
+      if( $this->session->flashdata( 'message' ) ){
+         $data['system_message'] = $this->session->flashdata( 'message' );
+      }
+      
+      if( !empty( $id ) ){
+         $aList = $this->agent_model->getAgentInfoById($id);
+         foreach( $aList as $sList ){
+            $data['agent_id'] = $sList->agentid;
+            $data['agent_name'] = $sList->agentname;
+            $data['alias'] = $sList->alias;
+         }
+         //print_r( $aList );
+      }
+      $this->load->view( 'agent/form', $data );
+   }
+	
+	function validateAgentInfo() {
+		$agentName = $this->input->post('agentname',TRUE);
+		$agentId = $this->input->post('agentList_id',TRUE);
+		$res = $this->agent_model->isAgentExists($agentId,$agentName);
+		if(!empty($res)) {
+			$message = $agentName.' is already taken!';
+			echo $message;
+		}
+		//echo json_encode($data);
+	}
+	
+	public function add() { 
+		$this->form_validation->set_rules('agentname','Agent Name','required|trim|xss_clean');
+		$this->form_validation->set_rules('alias','Alias','required|trim|xss_clean');
+		if($this->form_validation->run()) {
+			$agentInfos['agentname'] = $this->input->post('agentname',TRUE);
+			$agentInfos['alias'] = $this->input->post('alias',TRUE);
+			$last_id = $this->agent_model->createAgentInfo($agentInfos);
+         if( !empty( $last_id ) ){
+            $this->session->set_flashdata( 'message', lang('successAdd') );
+            redirect(base_url() . 'agent/index/' . $last_id);
+         } else {
+            $data['system_message'] = lang( 'errorAdd' );   
+         }
+			$data['system_message'] = lang('successAdd');
+		} else {
+         $data['system_message'] = lang( 'errorAdd' );
+      }                               
+		$this->load->view('agent/form',$data);
+      //redirect( base_url(). 'agent/viewAll' );
+	}
+	
+	public function edit() {
+		$this->form_validation->set_rules('agentname','Agent Name','required|trim|xss_clean');
+		$this->form_validation->set_rules('alias','Alias','required|trim|xss_clean');
+      $data = array();
+      $data['agent_id']    = $this->input->post('id',TRUE);
+      $data['agent_name']  = $this->input->post('agentname',TRUE);
+      $data['alias']       = $this->input->post('alias',TRUE);
+		if($this->form_validation->run()) {
+			$agentInfos['agentid'] = $this->input->post('id',TRUE);
+			$agentInfos['agentname'] = $this->input->post('agentname',TRUE);
+			$agentInfos['alias'] = $this->input->post('alias',TRUE);
+			$this->agent_model->updateAgentInfo($agentInfos);
+			$data['system_message'] = lang('successUpdate');
+		} 
+		$this->load->view('agent/form',$data);
+	}
+	
+	public function delete() {
+		$agentId = $this->input->post('recid',TRUE);
+		$this->agent_model->deleteAgentInfo($agentId);
+	}
+
+	public function agentList() {
+      buildGridData(
+         array(
+            'model'   => 'agent_model',
+            'method'  => 'getAllAgents',
+            'pkid'    => 'agentid',
+            'columns' => array( 'agentid','agentname','alias' )
+         )
+      );
+	}
+   
+   public function viewAll() {
+      $this->auth_model->requireLogin();
+      $aData = array(
+            'set_columns' => array( 
+                                 array(
+                                    'label'  => 'Agent ID',
+                                    'name'   => 'agentid',
+                                    'width'  => 100,
+                                    'size'   => 10
+                                 ),
+                                 array(
+                                       'label'  => 'Agent Name',
+                                       'name'   => 'agentname',
+                                       'width'  => 220,
+                                       'size'   => 10
+                                 ),
+                                 array(
+                                       'label'  => 'Alias',
+                                       'name'   => 'alias',
+                                       'width'  => 100,
+                                       'size'   => 10
+                                 )
+            ),
+            'div_name'     => 'grid',
+            'source'       => 'agent/agentList/',
+            'sort_name'    => 'agentname',
+            'add_url'      => 'agent/index/',
+            'edit_url'     => 'agent/index/',
+            'delete_url'   => 'agent/delete/',
+            'caption'      => 'Agent Maintenance',
+            'primary_key'  => 'agentid',
+            'grid_height'  => 230,
+            'custom'       => array(
+                                 'button'   => '{"caption":"","buttonicon":"ui-icon-trash","onClickButton":jqGridAssign,"title":"Assign Customers","position":"first","cursor":"pointer"}',
+                                 'function' => "function jqGridAssign() {
+                                                   var grid = $('#grid');
+                                                   var sel_id = grid.jqGrid('getGridParam', 'selrow');
+                                                   var agentId = grid.jqGrid('getCell', sel_id, 'agentid');
+                                                   if(!agentId) {
+                                                      alert('No selected row');
+                                                   } else {
+                                                      location.href = '" . base_url() . "agent/assign/'+agentId;
+                                                   }
+                                                }"
+            )
+      );
+      $data['agentGrid'] = buildGrid($aData);
+      $this->load->view('agent/agentlist',$data);
+   }
+}

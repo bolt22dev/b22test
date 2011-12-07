@@ -1,0 +1,45 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+class Auth extends CI_Controller {
+	
+   
+	public function __construct()
+    {
+        parent::__construct();
+    }
+	
+	
+	public function index() {
+		if($this->auth_model->isLoggedIn()) {
+			$this->successLogIn();
+		} else {
+			$this->load->view( 'auth/login.php');
+		}
+	}
+	
+	public function doLogin() {
+		$this->form_validation->set_error_delimiters('<span class="error">(', ')</span>');
+		$this->form_validation->set_rules('userName', 'Username', 'trim|required|xss_clean');
+		$this->form_validation->set_rules('password', 'Password', 'trim|required');
+		if ($this->form_validation->run()) {
+			$successLogIn = $this->auth_model->login();
+			if($successLogIn) redirect('/');
+			else $data['error'] = lang('login_error');
+		} else {
+			$data['error'] = lang('login_error');         
+		}
+		$this->load->view( 'auth/login.php',$data);
+	}
+	
+	public function doLogout() {
+		$this->auth_model->logout();
+		redirect("/");
+	}
+	
+	public function successLogIn() {
+		$this->auth_model->requireLogin();
+		$this->load->view('home/main');
+	}
+	
+	
+}

@@ -1,0 +1,98 @@
+<?php
+  // RETURNS ARRAYS FOR FORM OPTION USE 
+  function listUsers() {
+	$CI =& get_instance();
+	$SQL = "SELECT userid,username FROM tbluser ORDER BY username";
+	$result = $CI->db->query($SQL);
+     $aList = array();
+     if( $result->num_rows() > 0 ){
+        $aList[] = '';
+        foreach( $result->result() as $rs ){
+           $aList[$rs->userid] = $rs->username;
+        }
+     }
+     return $aList;
+  }
+  
+  
+  function listAgents(){
+     $CI =& get_instance();  
+     $SQL = "SELECT agentid, agentname FROM tblagent ORDER BY agentname"; 
+     $result = $CI->db->query($SQL);
+     $aList = array();
+     if( $result->num_rows() > 0 ){
+        $aList[] = '';
+        foreach( $result->result() as $rs ){
+           $aList[$rs->agentid] = $rs->agentname;
+        }
+     }
+     return $aList;
+  }
+  
+  function listCustomers() {
+	  $CI =& get_instance();
+	  $SQL = "SELECT custid,custname from tblcustomer order by custname";
+	  $result = $CI->db->query($SQL);
+		$aList = array();
+		if( $result->num_rows() > 0 ){
+        $aList[] = '';
+        foreach( $result->result() as $rs ){
+           $aList[$rs->custid] = $rs->custname;
+        }
+     }
+     return $aList;
+  }
+  
+  function listCustomerCategory( ){
+     $CI =& get_instance();   
+     $SQL = "SELECT cat_id, category FROM tblcust_cat";
+     $result = $CI->db->query($SQL);
+     $aList = array();
+     if( $result->num_rows() > 0 ){
+        $aList[] = '';
+        foreach( $result->result() as $rs ){
+           $aList[$rs->cat_id] = $rs->category;
+        }
+     }
+     return $aList;
+  }
+  
+  function listProvinces(){
+     $CI =& get_instance();  
+     $SQL = "SELECT province_id, province_name FROM tblprovince ORDER BY province_name"; 
+     $result = $CI->db->query($SQL);
+     $aList = array();
+     if( $result->num_rows() > 0 ){
+        $aList[] = '';
+        foreach( $result->result() as $rs ){
+           $aList[$rs->province_id] = $rs->province_name;
+        }
+     }
+     return $aList; 
+  }
+  
+  function listOutlets() {
+	  $CI =& get_instance();  
+     $SQL = "SELECT outid, outname FROM tbloutlet ORDER BY outname desc"; 
+     $result = $CI->db->query($SQL);
+     $aList = array();
+     if( $result->num_rows() > 0 ){
+        $aList[] = '';
+        foreach( $result->result() as $rs ){
+           $aList[$rs->outid] = $rs->outname;
+        }
+     }
+     return $aList; 
+  }
+  
+  function listInventoryTypes() {
+		$CI =& get_instance();
+		$CI->load->model('invtype_model');
+		$res = $CI->invtype_model->getAllInventoryTypes();
+		$aList = array();
+		foreach( $res as $rs ){
+           $aList[$rs->invtype_id] = $rs->inv_type;
+        }
+        return $aList;
+	 }
+?>

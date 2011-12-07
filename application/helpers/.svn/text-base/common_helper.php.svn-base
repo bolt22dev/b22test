@@ -1,0 +1,61 @@
+<?php
+
+function breakCache($cacheKey,$cleanCache=FALSE) {
+	$CI =& get_instance();
+	$CI->load->driver('cache', array('adapter' => 'apc'));
+	if($cleanCache) $this->cache->clean();
+	elseif($cacheKey)$CI->cache->delete($cacheKey);
+	else return FALSE;
+}
+
+
+function newPrimaryKeySequence($key=null) {
+	if(empty($key)) return FALSE;
+	$CI =& get_instance();
+	$SQL = "update tblsequence set $key=$key+1";
+	$CI->db->query($SQL);
+	$SQL = "Select $key from tblsequence limit 1;";
+	$result = $CI->db->query($SQL);
+	$row = $result->row();
+	return str_pad($row->$key,8,0,STR_PAD_LEFT);
+}
+
+function getPostingYear() {
+	$CI =& get_instance();
+	$SQL = "Select yearid 
+				from tblyear 
+				where posted <> 'P' 
+				order by yearname asc 
+				limit 1";
+	$result = $CI->db->query($SQL);
+	$row = $result->row();
+	return $row->yearid;
+}
+
+
+function buildWhereClauseForSearch($searchField,$searchString,$searchOperator) {
+	$searchString = mysql_real_escape_string($searchString);
+	$searchField = mysql_real_escape_string($searchField);
+	$operator['eq'] = "$searchField='$searchString'"; //equal to
+	$operator['ne'] = "$searchField<>'$searchString'"; //not equal to
+	$operator['lt'] = "$searchField < $searchString"; //less than
+	$operator['le'] = "$searchField <= $searchString "; //less than or equal to
+	$operator['gt'] = "$searchField > $searchString"; //less than
+	$operator['ge'] = "$searchField >= $searchString "; //less than or equal to
+	$operator['bw'] = "$searchField like '$searchString%'"; //begins with
+	$operator['bn'] = "$searchField not like '$searchString%'"; //not begins with
+	$operator['in'] = "$searchField in ($searchString)"; //in
+	$operator['ni'] = "$searchField not in ($searchString)"; //not in
+	$operator['ew'] = "$searchField like '%$searchString'"; //ends with
+	$operator['en'] = "$searchField not like '%$searchString%'"; //not ends with
+	$operator['cn'] = "$searchField like '%$searchString%'"; //in
+	$operator['nc'] = "$searchField not like '%$searchString%'"; //not in
+	$operator['nu'] = "$searchField is null"; //is null
+	$operator['nn'] = "$searchField is not null"; //is not null
+
+	if(isset($operator[$searchOperator])) {
+		return $operator[$searchOperator];
+	} else {
+		return null;
+	}
+}

@@ -1,0 +1,53 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+class Invtype_model extends CI_Model {
+	
+	function __contruct() {
+		parent::__construct();
+	}
+	
+	function getAllInventoryTypes($paramArr = null) {
+		$this->load->driver('cache', array('adapter' => 'apc'));
+		
+		$start = isset($paramArr['start'])?$paramArr['start']:NULL;
+		$limit = isset($paramArr['limit'])?$paramArr['start']:NULL;
+		$sortField = isset($paramArr['sortField'])?$paramArr['sortField']:'inv_type';
+		$sortOrder = isset($paramArr['sortOrder'])?$paramArr['sortOrder']:'asc';
+		$whereParam = isset($paramArr['whereParam'])?$paramArr['whereParam']:NULL;
+		$reload = isset($paramArr['reload'])?$paramArr['reload']:FALSE;
+		
+		if(!$reload) {
+			$cachedInventoryTypeList = $this->getInventoryTypeFromCache();
+			if($cachedInventoryTypeList) return $cachedInventoryTypeList;
+		}
+		
+		if(!empty($start) && !empty($limit)) $optLimit = "limit $start,$limit";
+		else $optLimit = NULL;
+		
+		if(!empty($whereParam)) $whereParam = "and (".$whereParam.")";
+		$whereClause = "where true ".$whereParam;
+		
+		$SQL = "Select invtype_id,inv_type from tblinv_type $whereClause order by $sortField $sortOrder $optLimit ";
+		$result = $this->db->query($SQL);
+		if($result->num_rows() > 0) {
+			$inventoryTypeList = $result->result();
+			$this->deleteInventoryTypeCache();
+			$this->cache->save(CACHE_INVENTORYTYPE, $inventoryTypeList, 60);
+			return $inventoryTypeList;
+		} else {
+			return null;
+		}
+	}
+	
+	private function deleteInventoryTypeCache() {
+      $this->load->driver('cache', array('adapter' => 'apc'));   
+      $this->cache->delete(CACHE_INVENTORYTYPE);
+	}
+	
+	private function getInventoryTypeFromCache() {
+      $this->load->driver('cache', array('adapter' => 'apc')); 
+      $res = $this->cache->get(CACHE_INVENTORYTYPE);
+		return $res;
+	}
+	
+}

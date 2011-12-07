@@ -1,0 +1,88 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+class Outlet_model extends CI_Model {
+   
+   function __contruct() {
+      parent::__construct();
+   }
+   
+   function getAllOutlets($paramArr) {
+      $this->load->driver('cache', array('adapter' => 'apc'));
+      
+      $start = isset($paramArr['start'])?$paramArr['start']:NULL;
+      $limit = isset($paramArr['limit'])?$paramArr['start']:NULL;
+      $sortField = isset($paramArr['sortField'])?$paramArr['sortField']:'outname';
+      $sortOrder = isset($paramArr['sortOrder'])?$paramArr['sortOrder']:'asc';
+      $whereParam = isset($paramArr['whereParam'])?$paramArr['start']:NULL;
+      $reload = isset($paramArr['reload'])?$paramArr['reload']:FALSE;
+      
+      if(!$reload) {
+         $cachedOutletList = $this->cache->get(CACHE_OUTLETLIST);
+         if($cachedOutletList) return $cachedOutletList;
+      }
+      
+      if(!empty($start) && !empty($limit)) $optLimit = "limit $start,$limit";
+      else $optLimit = NULL;
+      
+      if(!empty($whereParam)) $whereParam = "and (".$whereParam.")";
+      $whereClause = "where true ".$whereParam;
+      
+      $SQL = "Select outid, outname, address, contactno from tbloutlet $whereClause order by $sortField $sortOrder $optLimit ";
+      $result = $this->db->query($SQL);
+      if($result->num_rows() > 0) {
+         $outletList = $result->result();
+         $this->cache->delete(CACHE_OUTLETLIST);
+         $this->cache->save(CACHE_OUTLETLIST, $outletList, 60);
+         return $outletList;
+      } else {
+         return null;
+      }
+   }
+   
+   function getOutletInfoById($outletid) {
+      $SQL = "Select outid, outname, address, contactno from tbloutlet where outid=?";
+      $values = array($outletid);
+      $result = $this->db->query($SQL,$values);
+      if($result->num_rows() > 0) return $result->result();
+      else return NULL;
+   }
+                        
+   function createOutletInfo($outletInfos){
+      $outlet_id = newPrimaryKeySequence('outid');
+      $SQL = "INSERT INTO tbloutlet VALUES(?,?,?,?)";
+      $aValue = array( $outlet_id, $outletInfos['outlet_name'], $outletInfos['address'], $outletInfos['contact_no'] );
+      $this->db->query($SQL,$aValue);
+      if($this->db->affected_rows() > 0) return $outlet_id;
+      else return null;
+   }
+   
+   function updateOutletInfo($outletInfos) {
+      $SQL = "update tbloutlet set outname=?,address=?,contactno=? where outid=?";
+      $values = array($outletInfos['outlet_name'],$outletInfos['address'],$outletInfos['contact_no'],$outletInfos['outlet_id']);
+      $this->db->query($SQL,$values);
+      $this->deleteOutletCache();
+      if($this->db->affected_rows() > 0) return TRUE;
+      else return FALSE;
+   }
+   
+   function deleteOutletInfo($outletId) {
+      $SQL = "delete from tbloutlet where outid = ?";
+      $values = array($outletId);
+      $this->db->query($SQL,$values);
+      if($this->db->affected_rows() > 0) return TRUE;
+      else return FALSE;
+   }
+   
+   private function deleteOutletCache() {
+      $this->load->driver('cache', array('adapter' => 'apc'));   
+      $this->cache->delete(CACHE_OUTLETLIST);
+   }
+   
+   private function getOutletFromCache() {
+      $this->load->driver('cache', array('adapter' => 'apc')); 
+      $res = $this->cache->get(CACHE_OUTLETLIST);
+      return $res;
+   }
+   
+   
+}

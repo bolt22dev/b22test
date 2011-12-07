@@ -1,0 +1,123 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+class User_model extends CI_Model {
+	
+	function __contruct() {
+		parent::__construct();
+	}
+	
+	function getLoggedInUserInfo($reload = FALSE) {
+		$this->load->driver('cache', array('adapter' => 'apc'));
+		if(!$reload) {
+			$cachedUserInfo = $this->cache->get(CACHE_USERINFO);
+			if($cachedUserInfo) return $cachedUserInfo;
+		}
+		
+		$SQL = "Select userid,username,usertype from tbluser where userid = ?";
+		$values = array($this->session->userdata(LOGGED_USERID));
+		$result = $this->db->query($SQL,$values);
+		if($result->num_rows() > 0) {
+			$row = $result->row();
+			$this->cache->delete(CACHE_USERINFO);
+			$this->cache->save(CACHE_USERINFO, $row, 60);
+			return $row;
+		} else {
+			return null;
+		}
+	}
+	
+	function getAllUsers($paramArr) {
+		$this->load->driver('cache', array('adapter' => 'apc'));
+		
+		$start = isset($paramArr['start'])?$paramArr['start']:NULL;
+		$limit = isset($paramArr['limit'])?$paramArr['start']:NULL;
+		$sortField = isset($paramArr['sortField'])?$paramArr['sortField']:'username';
+		$sortOrder = isset($paramArr['sortOrder'])?$paramArr['sortOrder']:'desc';
+		$whereParam = isset($paramArr['whereParam'])?$paramArr['start']:NULL;
+		$reload = isset($paramArr['reload'])?$paramArr['reload']:FALSE;
+		
+		if(!$reload) {
+			$cachedUserList = $this->cache->get(CACHE_USERLIST);
+			if($cachedUserList) return $cachedUserList;
+		}
+		
+		if(!empty($start) && !empty($limit)) $optLimit = "limit $start,$limit";
+		else $optLimit = NULL;
+		
+		if(!empty($whereParam)) $whereParam = "and (".$whereParam.")";
+		$whereClause = "where true ".$whereParam;
+		
+		$SQL = "Select userid,username,usertype from tbluser $whereClause order by $sortField $sortOrder $optLimit ";
+		$result = $this->db->query($SQL);
+		if($result->num_rows() > 0) {
+			$userList = $result->result();
+			$this->cache->delete(CACHE_USERLIST);
+			$this->cache->save(CACHE_USERLIST, $userList, 60);
+			return $userList;
+		} else {
+			return null;
+		}
+	}
+	
+	function getUserName() {
+		$userInfo = $this->getLoggedInUserInfo();
+		return (isset($userInfo->username)?$userInfo->username:'');
+	}
+	
+	function getUserInfoById($userId) {
+		$SQL = "Select userid,username,usertype from tbluser where userid='?'";
+		$values = array($userid);
+		$result = $this->db->query($SQL,$values);
+		if($result->num_rows() > 0) return $result->result();
+		else return NULL;
+	}
+	
+	function getUserInfoByUserName($username) {
+		$SQL = "Select userid,username,usertype from tbluser where username=?";
+		$values = array($username);
+		$result = $this->db->query($SQL,$values);
+		if($result->num_rows() > 0) return $result->result();
+		else return NULL;
+	}
+	
+	function isUserExists($userId,$username) {
+		$SQL = "Select userid,username,usertype from tbluser where userid <> ? and username=?";
+		$values = array($userId,$username);
+		$result = $this->db->query($SQL,$values);
+		if($result->num_rows() > 0) return $result->result();
+		else return NULL;
+	}
+	
+	function createUserInfo($userInfos) {
+		$userId = newPrimaryKeySequence('userid');
+		$SQL = "insert into tbluser values(?,?,?,?);";
+		$values = array($userId,$userInfos['username'],$userInfos['userpass'],$userInfos['userType']);
+		$this->db->query($SQL,$values);
+		if($this->db->affected_rows() > 0) return TRUE;
+		else return FALSE;
+	}
+	
+	function updateUserInfo($userInfos) {
+		$SQL = "update tbluser set username=?,userType=? where userid=?";
+		$values = array($userInfos['username'],$userInfos['userType'],$userInfos['userId']);
+		$this->db->query($SQL,$values);
+		if($this->db->affected_rows() > 0) return TRUE;
+		else return FALSE;
+	}
+	
+	function deleteUserInfo($userId) {
+		$SQL = "delete from tbluser where userid = ?";
+		$values = array($userId);
+		$this->db->query($SQL,$values);
+		if($this->db->affected_rows() > 0) return TRUE;
+		else return FALSE;
+	}
+	
+	function updateUserPassword($userId,$newPassword = 'king123') {
+		$SQL = "update tbluser set userpass=md5(?) where userid=?";
+		$vales = array($newPassword,$userId);
+		$this->db->query($SQL,$values);
+		if($this->db->affected_rows() > 0) return TRUE;
+		else return FALSE;
+	}
+}

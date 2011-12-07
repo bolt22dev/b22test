@@ -1,0 +1,90 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+class User extends CI_Controller {
+	
+	public function __construct()
+    {
+        parent::__construct();
+    }
+    
+    public function viewAll() {
+		$this->auth_model->requireLogin();
+		$this->load->view('user/userlist');
+	}
+	
+	function validateUserInfo() {
+		$username = $this->input->post('username',TRUE);
+		$userId = $this->input->post('userList_id',TRUE);
+		$res = $this->user_model->isUserExists($userId,$username);
+		if(!empty($res)) {
+			$message = $username.' is already taken!';
+			echo $message;
+		}
+		//echo json_encode($data);
+	}
+	
+	public function maniplulate() {
+		$action = $this->input->post('oper',TRUE);
+		switch($action) {
+		case 'add':
+			$userInfos['username'] = $this->input->post('username',TRUE);
+			$userInfos['userpass'] = 'king123';
+			$userInfos['userType'] = $this->input->post('usertype',TRUE);
+			$this->user_model->createUserInfo($userInfos);
+			break;
+		case 'edit':
+			$userInfos['userId'] = $this->input->post('id',TRUE);
+			$userInfos['username'] = $this->input->post('username',TRUE);
+			$userInfos['userType'] = $this->input->post('usertype',TRUE);
+			$this->user_model->updateUserInfo($userInfos);
+			break;
+		case 'del':	
+			$userId = $this->input->post('id',TRUE);
+			$this->user_model->deleteUserInfo($userId);
+			break;
+		}
+	}
+
+	public function userList() {
+		$isSearch = $this->input->get('_search');
+		$searchField = $this->input->get('searchField');
+		$searchString = $this->input->get('searchString');
+		$searchOperator = $this->input->get('searchOper');
+		$page = $this->input->get('page'); // get the requested page
+		$limit = $this->input->get('rows'); // get how many rows we want to have into the grid
+		$sidx = $this->input->get('sidx'); // get index row - i.e. user click to sort
+		$sord = $this->input->get('sord'); // get the direction
+
+		if($isSearch) $whereParam = buildWhereClauseForSearch($searchField,$searchString,$searchOperator);
+		else $whereParam = NULL;
+		
+		$paramArr['whereParam'] = $whereParam;
+		$paramArr['reload'] = TRUE;
+		$allUsersResult = $this->user_model->getAllUsers($paramArr);
+		$count = count($allUsersResult);
+		if( $count >0 ) $total_pages = ceil($count/$limit);
+		else $total_pages = 0;
+		
+		if ($page > $total_pages) $page=$total_pages;
+		$start = $limit*$page - $limit;
+		
+		$paramArr['start'] = $start;
+		$paramArr['limit'] = $limit;
+		$paramArr['sortField'] = $sidx;
+		$paramArr['sortOrder'] = $sord;
+		$paramArr['whereParam'] = $whereParam;
+		$paramArr['reload'] = TRUE;
+		$userList = $this->user_model->getAllUsers($paramArr);
+		$i=0;
+		foreach ($userList as $row)
+		{
+			$response->rows[$i]['id']=$row->userid;
+			$response->rows[$i]['cell']=array($row->userid,$row->username,$row->usertype);
+			$i++;
+		}
+		$response->page = $page;
+		$response->total = $total_pages;
+		$response->records = $count;
+		echo json_encode($response);
+	}
+}

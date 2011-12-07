@@ -1,0 +1,25 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+class Transmenu extends CI_Controller {
+   
+	public function __construct()
+	{
+        parent::__construct();
+        $this->load->helper('form_opt');
+	}
+   
+	public function index($menu = null,$action = null) {
+	   $this->form_validation->set_rules('outlets','Outlet Name','required|xss_clean');
+	   $this->form_validation->set_rules('inventoryType','Inventory Type','required|xss_clean');
+	   if($this->form_validation->run()) {
+		   $this->session->set_userdata(SELECTED_OUTLET,$this->input->post('outlets',TRUE));
+		   $this->session->set_userdata(SELECTED_INVENTORY_TYPE,$this->input->post('inventoryType',TRUE));
+		   if($menu) redirect("/$menu/$action");
+		}
+		$data['outlets'] = listOutlets();
+		$data['inventoryType'] = listInventoryTypes();
+		$data['menu'] = $menu;
+		$data['action'] = $action;
+		$this->load->view('components/transmenu',$data);
+	}
+}

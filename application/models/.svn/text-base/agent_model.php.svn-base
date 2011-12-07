@@ -1,0 +1,92 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+class Agent_model extends CI_Model {
+	
+	function __contruct() {
+		parent::__construct();
+	}
+	
+	function getAllAgents($paramArr) {		
+		$start = isset($paramArr['start'])?$paramArr['start']:NULL;
+		$limit = isset($paramArr['limit'])?$paramArr['start']:NULL;
+		$sortField = isset($paramArr['sortField'])?$paramArr['sortField']:'agentname';
+		$sortOrder = isset($paramArr['sortOrder'])?$paramArr['sortOrder']:'desc';
+		$whereParam = isset($paramArr['whereParam'])?$paramArr['whereParam']:NULL;
+		$reload = isset($paramArr['reload'])?$paramArr['reload']:FALSE;
+		
+		if(!$reload) {
+			//$cachedAgentList = $this->getAgentFromCache();
+			$cachedAgentList = get_cache(CACHE_AGENTLIST);
+			if($cachedAgentList) return $cachedAgentList;
+		}
+		
+		if(!empty($start) && !empty($limit)) $optLimit = "limit $start,$limit";
+		else $optLimit = NULL;
+		
+		if(!empty($whereParam)) $whereParam = "and (".$whereParam.")";
+		$whereClause = "where true ".$whereParam;
+		
+		$SQL = "Select agentid,agentname,alias from tblagent $whereClause order by $sortField $sortOrder $optLimit ";
+		$result = $this->db->query($SQL);
+		if($result->num_rows() > 0) {
+			$agentList = $result->result();
+			set_cache(CACHE_AGENTLIST,$agentList);
+			return $agentList;
+		} else {
+			return null;
+		}
+	}
+	
+	function getAgentInfoById($agentid) {
+		$SQL = "Select agentid,agentname,alias from tblagent where agentid=?";
+		$values = array($agentid);
+		$result = $this->db->query($SQL,$values);
+		if($result->num_rows() > 0) return $result->result();
+		else return NULL;
+	}
+	
+	function getAgentInfoByAgentName($agentname) {
+		$SQL = "Select agentid,agentname,alias from tblagent where agentname=?";
+		$values = array($agentname);
+		$result = $this->db->query($SQL,$values);
+		if($result->num_rows() > 0) return $result->result();
+		else return NULL;
+	}
+	
+	function isAgentExists($agentid,$agentname) {
+		$SQL = "Select agentid,agentname,alias from tblagent where agentid <> ? and agentname=?";
+		$values = array($agentid,$agentname);
+		$result = $this->db->query($SQL,$values);
+		if($result->num_rows() > 0) return $result->result();
+		else return NULL;
+	}
+	
+	function createAgentInfo($agentInfos) {
+		$agentid = newPrimaryKeySequence('agentid');
+		$SQL = "insert into tblagent values(?,?,?);";
+		$values = array($agentid,$agentInfos['agentname'],$agentInfos['alias']);
+		$this->db->query($SQL,$values);
+		delete_cache(CACHE_AGENTLIST);
+		if($this->db->affected_rows() > 0) return $agentid;
+		else return null;
+	}
+	
+	function updateAgentInfo($agentInfos) {
+		$SQL = "update tblagent set agentname=?,alias=? where agentid=?";
+		$values = array($agentInfos['agentname'],$agentInfos['alias'],$agentInfos['agentid']);
+		$this->db->query($SQL,$values);
+		delete_cache(CACHE_AGENTLIST);
+		if($this->db->affected_rows() > 0) return TRUE;
+		else return FALSE;
+	}
+	
+	function deleteAgentInfo($agentid) {
+		$SQL = "delete from tblagent where agentid = ?";
+		$values = array($agentid);
+		$this->db->query($SQL,$values);
+		$delete_cache(CACHE_AGENTLIST);
+		if($this->db->affected_rows() > 0) return TRUE;
+		else return FALSE;
+	}
+	
+}

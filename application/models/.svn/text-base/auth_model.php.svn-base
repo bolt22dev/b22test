@@ -1,0 +1,41 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+class Auth_model extends CI_Model {
+	
+	function __contruct() {
+		parent::__construct();
+	}
+	
+	public function requireLogin() {
+		if(!$this->session->userdata(LOGGED_USERID)) {
+			redirect('/');
+		}
+	}
+	
+	public function isLoggedIn() {
+		return ($this->session->userdata(LOGGED_USERID))?TRUE:FALSE;
+	}
+	
+	public function login() {
+		$userName = $this->input->post('userName');
+		$password = $this->input->post('password');
+		$SQL = "SELECT * FROM tbluser where username = ? and userpass = md5(?)";
+		$values = array($userName,$password);
+		$result = $this->db->query($SQL,$values);
+		
+		if($result->num_rows() > 0) {
+			$user = $result->row();
+			$this->session->set_userdata(LOGGED_USERID,$user->userid);
+			return TRUE;
+		} else {
+			return FALSE;
+		}
+	}
+	
+	public function logout() {
+		clear_cache();
+		$this->session->unset_userdata(LOGGED_USERID);
+	}
+	
+}
+

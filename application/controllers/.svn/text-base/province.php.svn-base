@@ -1,0 +1,111 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+class Province extends CI_Controller {
+   
+   public function __construct()
+   {
+        parent::__construct();
+        $this->load->helper( 'grid' );
+        $this->load->model( 'province_model' );
+   }
+   
+   public function index( $id = null ){
+      $this->auth_model->requireLogin(); 
+      $data = array();
+      if( $this->session->flashdata( 'message' ) ){
+          $data['system_message'] = $this->session->flashdata( 'message' );
+      }
+      if( !empty( $id ) ){
+          $aList = $this->province_model->getProvinceInfoById($id);
+          foreach( $aList as $sList ){
+             $data['province_id']   = $sList->province_id;
+             $data['province_name'] = $sList->province_name;
+          }
+       }
+      $this->load->view( 'province/form', $data );
+   }
+   
+   public function exec( $action, $id = null ){
+      switch( $action ){
+         case 'add' :
+            $this->form_validation->set_rules('province_name','Province Name','required|xss_clean');  
+            $data = array();
+            $data['province_name'] = $this->input->post( 'province_name', TRUE );
+            if($this->form_validation->run()) {
+               $aProvince['province_name'] = $this->input->post( 'province_name', TRUE ); 
+               $province_id = $this->province_model->createProvinceInfo($aProvince);  
+               if( !empty( $province_id ) ){
+                  $this->session->set_flashdata( 'message', lang('successAdd') ); 
+                  redirect(base_url() . 'province/index/' . $province_id); 
+               } else {
+                  $this->session->set_flashdata( 'message', 'There was an error inserting the data.' ); 
+               }
+            } else {
+               $this->session->set_flashdata( 'message', validation_errors() );                 
+               $this->load->view( 'province/form', $data );
+            }
+         break;
+         case 'edit' :
+            $this->form_validation->set_rules('province_name','Province Name','required|xss_clean');  
+            $data = array();
+            $data['province_name'] = $this->input->post( 'province_name', TRUE );
+            if($this->form_validation->run()) {
+               $aProvince['province_id']   = $this->input->post( 'id', TRUE );
+               $aProvince['province_name'] = $this->input->post( 'province_name', TRUE ); 
+               $this->province_model->updateProvinceInfo($aProvince);  
+               $this->session->set_flashdata( 'message', lang('successAdd') ); 
+               redirect(base_url() . 'province/index/' . $id); 
+            } else {
+               $this->session->set_flashdata( 'message', validation_errors() );                 
+               $this->load->view( 'province/form', $data );
+            }
+         break;
+         case 'del' :
+            $province_id = $this->input->post('recid',TRUE);
+            $this->province_model->deleteProvinceInfo($province_id);
+         break;
+      }
+   }
+   
+   public function viewAll(){
+      $this->auth_model->requireLogin();
+      $aData = array(
+            'set_columns' => array( 
+                                 array(
+                                    'label'  => 'Province ID',
+                                    'name'   => 'province_id',
+                                    'width'  => 100,
+                                    'size'   => 10
+                                 ),
+                                 array(
+                                       'label'  => 'Province Name',
+                                       'name'   => 'province_name',
+                                       'width'  => 380,
+                                       'size'   => 10
+                                 )
+            ),
+            'div_name'     => 'grid',
+            'source'       => 'province/provinceList/',
+            'sort_name'    => 'province_name',
+            'add_url'      => 'province/index/',
+            'edit_url'     => 'province/index/',
+            'delete_url'   => 'province/exec/del',
+            'caption'      => 'Province Maintenance',
+            'primary_key'  => 'province_id',
+            'grid_height'  => 230
+      );
+      $data['provinceGrid'] = buildGrid( $aData );
+      $this->load->view('province/provincelist',$data);
+   }
+   
+   public function provinceList() {
+      buildGridData(
+         array(
+            'model'   => 'province_model',
+            'method'  => 'getAllProvinces',
+            'pkid'    => 'province_id',
+            'columns' => array( 'province_id','province_name' )
+         )
+      );
+   }
+}

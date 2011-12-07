@@ -1,0 +1,25 @@
+<?php
+
+
+function set_cache($cacheName,$value) {
+	$this->load->driver('cache', array('adapter' => 'apc','backup' => 'file'));
+	$this->delete_cache($cacheName);
+	$this->cache->save($cacheName, $value, 60);
+}
+
+function get_cache($cacheName) {
+	$this->load->driver('cache', array('adapter' => 'apc','backup' => 'file'));
+	$res = $this->cache->get($cacheName);
+	return $res;
+}
+
+function delete_cache($cacheName) {
+	$this->load->driver('cache', array('adapter' => 'apc','backup' => 'file'));  
+	$this->cache->delete($cacheName);
+}
+
+function clear_cache() {
+	$this->load->driver('cache', array('adapter' => 'apc','backup' => 'file'));
+	$this->cache->clean();
+}
+	

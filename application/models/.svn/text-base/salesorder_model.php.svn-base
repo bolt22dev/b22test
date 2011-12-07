@@ -1,0 +1,106 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+class Salesorder_model extends CI_Model {
+	
+	function __contruct() {
+		parent::__construct();
+	}
+	
+	function getAllSalesOrder($paramArr) {
+		$this->load->driver('cache', array('adapter' => 'apc'));
+		
+		$start = isset($paramArr['start'])?$paramArr['start']:NULL;
+		$limit = isset($paramArr['limit'])?$paramArr['start']:NULL;
+		$sortField = isset($paramArr['sortField'])?$paramArr['sortField']:'r.transdate';
+		$sortOrder = isset($paramArr['sortOrder'])?$paramArr['sortOrder']:'desc';
+		$whereParam = isset($paramArr['whereParam'])?$paramArr['whereParam']:NULL;
+		$reload = isset($paramArr['reload'])?$paramArr['reload']:FALSE;
+		$outletId = isset($paramArr['outletid'])?$paramArr['outletid']:'000005';
+		$invtypeId = isset($paramArr['invtypeId'])?$paramArr['invtypeId']:'6';
+		$postingYear = isset($paramArr['postingYear'])?$paramArr['postingYear']:date('Y');
+		
+		if(!$reload) {
+			$cachedSoList = $this->getSoFromCache();
+			if($cachedSoList) return $cachedSoList;
+		}
+		
+		//echo "Start:".$start;
+		//echo "limit:".$limit;
+		//die();
+		
+		if(!empty($start) && !empty($limit)) $optLimit = "limit $start,$limit";
+		else $optLimit = NULL;
+		
+		if(!empty($whereParam)) $whereParam = "and (".$whereParam.")";
+		$whereClause = "where true ".$whereParam;
+		
+		//$SQL = "Select * from tblso $whereClause order by $sortField $sortOrder $optLimit ";
+		$SQL = "Select r.soid,r.pono,date_format(r.transdate,'%m-%d-%Y') as 'transdate',
+						ucase(s.custname) as 'custname'
+				from tblso r,tblcustomer s
+				$whereClause
+				and s.custid = r.custid
+				and r.invtype_id = '{$invtypeId}'
+				and r.outid = '{$outletId}'
+				and r.yearid = '{$postingYear}'
+				and r.void_flag <> '1'
+				order by $sortField $sortOrder
+				$optLimit";
+		//echo $SQL;
+		//die();
+		$result = $this->db->query($SQL);
+		if($result->num_rows() > 0) {
+			$soList = $result->result();
+			$this->deleteSoCache();
+			$this->cache->save(CACHE_SOLIST, $soList, 60);
+			return $soList;
+		} else {
+			return null;
+		}
+	}
+	
+	function getSalesOrderById($soid) {
+		$SQL = "Select s.soid,s.custid,s.agentid,s.outid,date_format(s.transdate,'m-d-Y') as transdate,s.userid
+				from tblso where soid='?'";
+		$values = array($soid);
+		$result = $this->db->query($SQL,$values);
+		if($result->num_rows() > 0) return null;
+		else return $result->result();
+	}
+	
+	function getSalesOrderItemListById($param) {
+		$SQL = "Select a.transdate,a.custid,l.recid,l.prodid,p.proddesc,l.cost_id,l.unit_id,l.enumunit,l.qty,l.price_id
+				from tblso a,tblso_list l,tblproducts p,tblunit u
+				where l.prodid = p.prodid
+				and a.soid = l.soid
+				and l.unit_id = u.unit_id
+				and p.prodid = u.prodid
+				and a.soid = '?'
+				and a.outid = '?'
+				and p.invtype_id = '?'
+				order by p.proddesc";	
+		$values = array($soid,$outid,$invtypeId);
+		$result = $this->db->query($SQL,$values);
+		if($result->num_rows() > 0) return $result->result();
+		else return NULL;
+	}
+	
+	function deleteAgentInfo($agentid) {
+		$SQL = "delete from tblagent where agentid = ?";
+		$values = array($agentid);
+		$this->db->query($SQL,$values);
+		$this->deleteAgentCache();
+		if($this->db->affected_rows() > 0) return TRUE;
+		else return FALSE;
+	}
+	
+	private function deleteSoCache() {
+		$this->cache->delete(CACHE_SOLIST);
+	}
+	
+	private function getSoFromCache() {
+		$res = $this->cache->get(CACHE_SOLIST);
+		return $res;
+	}
+	
+}

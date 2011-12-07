@@ -1,0 +1,132 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+class Customer_model extends CI_Model {
+   
+   function __contruct() {
+      parent::__construct();
+   }
+   
+   function getAllCustomers($paramArr) {
+      $this->load->driver('cache', array('adapter' => 'apc'));
+      
+      $start = isset($paramArr['start'])?$paramArr['start']:NULL;
+      $limit = isset($paramArr['limit'])?$paramArr['start']:NULL;
+      $sortField = isset($paramArr['sortField'])?$paramArr['sortField']:'custname';
+      $sortOrder = isset($paramArr['sortOrder'])?$paramArr['sortOrder']:'asc';
+      $whereParam = isset($paramArr['whereParam'])?$paramArr['whereParam']:NULL;
+      $reload = isset($paramArr['reload'])?$paramArr['reload']:FALSE;
+      
+      if(!$reload) {
+         $cachedCustomerList = $this->getCustomerFromCache();
+         if($cachedCustomerList) return $cachedCustomerList;
+      }
+      
+      if(!empty($start) && !empty($limit)) $optLimit = "limit $start,$limit";
+      else $optLimit = NULL;
+      
+      if(!empty($whereParam)) $whereParam = "and (".$whereParam.")";
+      $whereClause = "where true ".$whereParam;
+      
+      $SQL = "SELECT * FROM tblcustomer $whereClause order by $sortField $sortOrder $optLimit ";
+      $result = $this->db->query($SQL);
+      if($result->num_rows() > 0) {
+         $custlist = $result->result();
+         $this->deleteCustomerCache();
+         $this->cache->save(CACHE_CUSTOMERLIST, $custlist, 60);
+         return $custlist;
+      } else {
+         return null;
+      }
+   }
+   
+   public function getCustomerInfoById( $customer_id ){
+      $SQL = "SELECT * FROM tblcustomer WHERE custid=?";
+      $values = array($customer_id);
+      $result = $this->db->query($SQL,$values);
+      if($result->num_rows() > 0) return $result->result();
+      else return NULL;
+   }
+   
+   public function createCustomerInfo( $aCustomer ){
+      $customer_id = newPrimaryKeySequence('custid');      
+      $SQL = "INSERT INTO tblcustomer VALUES (?,?,?,?,?,?,?,?,?,?,?)";
+      $state = ( $aCustomer['status'] == TRUE ) ? 'ACTIVE' : 'INACTIVE';
+      $values = array( 
+                  $customer_id, 
+                  $aCustomer['customer_name'], 
+                  $aCustomer['address1'], 
+                  $aCustomer['contact_name'],
+                  $aCustomer['mobile_no'],
+                  $aCustomer['landline_no'],
+                  $aCustomer['fax'],
+                  $aCustomer['discount'],
+                  $aCustomer['agent_sel'],
+                  $aCustomer['custcat_sel'],
+                  $aCustomer['province_sel'],
+                  $state
+      );
+      $this->db->query($SQL,$values);
+      $this->deleteCustomerCache();
+      if($this->db->affected_rows() > 0) return $customer_id;
+      else return NULL;
+   }
+   
+   function updateCustomerInfo( $aCustomer ) {
+      $SQL = "UPDATE tblcustomer 
+                 SET custname=?,
+                     custadd=?,
+                     custadd2=?,
+                     custadd3=?,
+                     custcontact_name=?,
+                     custmobileno=?,
+                     custlandlineno=?,
+                     custfax=?,
+                     custdiscount=?,
+                     agentid=?,
+                     cat_id=?,
+                     province_id=?,
+                     custstatus=?
+              WHERE custid=?";
+      $state = ( $aCustomer['status'] == TRUE ) ? 'ACTIVE' : 'INACTIVE';
+      $values = array(
+                  $aCustomer['customer_name'], 
+                  $aCustomer['address1'], 
+                  $aCustomer['address2'],
+                  $aCustomer['address3'],
+                  $aCustomer['contact_name'],
+                  $aCustomer['mobile_no'],
+                  $aCustomer['landline_no'],
+                  $aCustomer['fax'],
+                  $aCustomer['discount'],
+                  $aCustomer['agent_sel'],
+                  $aCustomer['custcat_sel'],
+                  $aCustomer['province_sel'],
+                  $state,
+                  $aCustomer['customer_id']
+      );
+      $this->db->query($SQL,$values);
+      $this->deleteCustomerCache();   
+      if($this->db->affected_rows() > 0) return TRUE;
+      else return FALSE;
+   }
+   
+   function deleteCustomerInfo($customer_id) {
+      $SQL = "delete from tblcustomer where custid = ?";
+      $values = array($customer_id);
+      $this->db->query($SQL,$values);
+      $this->deleteCustomerCache();
+      if($this->db->affected_rows() > 0) return TRUE;
+      else return FALSE;
+   }
+   
+   private function deleteCustomerCache() {
+      $this->load->driver('cache', array('adapter' => 'apc'));   
+      $this->cache->delete(CACHE_CUSTOMERLIST);
+   }
+   
+   private function getCustomerFromCache() {
+      $this->load->driver('cache', array('adapter' => 'apc')); 
+      $res = $this->cache->get(CACHE_CUSTOMERLIST);
+      return $res;
+   }
+}

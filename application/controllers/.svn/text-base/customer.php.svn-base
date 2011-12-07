@@ -1,0 +1,197 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+class Customer extends CI_Controller {
+   
+   public function __construct()
+   {
+        parent::__construct();
+        $this->load->helper('form_opt');
+        $this->load->helper('grid');
+        $this->load->model('customer_model');
+   }
+   
+   public function index( $id = null ){
+      $this->auth_model->requireLogin(); 
+      $data = array();
+      $data['agent_sel']     = '';
+      $data['province_sel']  = '';
+      $data['custcat_sel']   = '';
+      $data['agent_list']    = listAgents();
+      $data['province_list'] = listProvinces();
+      $data['custcat_list']  = listCustomerCategory();
+      if( $this->session->flashdata( 'message' ) ){
+         $data['system_message'] = $this->session->flashdata( 'message' );
+      } 
+      if( !empty( $id ) ){
+         $aData = $this->customer_model->getCustomerInfoById($id);
+         foreach( $aData as $sData ){
+            $data['customer_id']    = $sData->custid;
+            $data['customer_name']  = $sData->custname;
+            $data['address1']       = $sData->custadd;
+            $data['address2']       = $sData->custadd2;
+            $data['address3']       = $sData->custadd3;
+            $data['contact_name']   = $sData->custcontact_name;
+            $data['mobile_no']      = $sData->custmobileno;
+            $data['landline_no']    = $sData->custlandlineno;
+            $data['fax']            = $sData->custfax;
+            $data['discount']       = $sData->custdiscount;
+            $data['agent_sel']      = $sData->agentid;
+            $data['custcat_sel']    = $sData->cat_id;
+            $data['province_sel']   = $sData->province_id;
+            if( strtoupper( $sData->custstatus ) == 'ACTIVE' ){
+               $checked = 'checked="checked"';
+            } else {
+               $checked = '';
+            }
+            $data['status']         = $checked;
+         }
+         
+      }      
+      $this->load->view( 'customer/form', $data );
+   }
+   
+   public function viewAll(){
+      $this->auth_model->requireLogin(); 
+      $aData = array(
+            'set_columns' => array( 
+                                 array(
+                                    'label'  => 'Customer ID',
+                                    'name'   => 'custid',
+                                    'width'  => 100,
+                                    'size'   => 10
+                                 ),
+                                 array(
+                                       'label'  => 'Customer Name',
+                                       'name'   => 'custname',
+                                       'width'  => 220,
+                                       'size'   => 10
+                                 ),
+                                 array(
+                                       'label'  => 'Status',
+                                       'name'   => 'custstatus',
+                                       'width'  => 100,
+                                       'size'   => 10
+                                 )
+            ),
+            'div_name'     => 'grid',
+            'source'       => 'customer/customerList/',
+            'sort_name'    => 'custname',
+            'add_url'      => 'customer/index/',
+            'edit_url'     => 'customer/index/',
+            'delete_url'   => 'customer/exec/del',
+            'caption'      => 'Customer Maintenance',
+            'primary_key'  => 'custid',
+            'grid_height'  => 230
+      );
+      $data['customerGrid'] = buildGrid($aData);
+      $this->load->view( 'customer/customerlist',$data );
+   }
+   
+   public function customerList() {
+      buildGridData(
+         array(
+            'model'   => 'customer_model',
+            'method'  => 'getAllCustomers',
+            'pkid'    => 'custid',
+            'columns' => array( 'custid','custname','custstatus' )
+         )
+      );
+   }
+   
+   public function validateOpt( $val ){
+      if( $val == 0 ){
+         $this->form_validation->set_message('validateOpt', 'Please select a %s.');
+         return FALSE;
+      }
+      return TRUE;
+   }
+   
+   public function exec( $action, $id = null ){
+      switch( $action ){
+         case 'add':
+            $this->form_validation->set_rules('customer_name','Customer Name','required|xss_clean');        
+            $this->form_validation->set_rules('address1','Address 1','required|xss_clean');        
+            $this->form_validation->set_rules('contact_name','Contact Name','required|xss_clean');        
+            $this->form_validation->set_rules('mobile_no','Mobile #','required|xss_clean');        
+            $this->form_validation->set_rules('landline_no','Landline #','required|xss_clean');        
+            $this->form_validation->set_rules('fax','Fax','required|xss_clean');        
+            $this->form_validation->set_rules('discount','Discount','required|xss_clean');        
+            $this->form_validation->set_rules('agent','Agent','required|xss_clean|callback_validateOpt');        
+            $this->form_validation->set_rules('customer_cat','Customer Category','required|xss_clean|callback_validateOpt');        
+            $this->form_validation->set_rules('province','Province','required|xss_clean|callback_validateOpt');        
+            $data['customer_name']  = $this->input->post( 'customer_name', TRUE );
+            $data['address1']       = $this->input->post( 'address1', TRUE );
+            $data['address2']       = $this->input->post( 'address2', TRUE );
+            $data['address3']       = $this->input->post( 'address3', TRUE );
+            $data['contact_name']   = $this->input->post( 'contact_name', TRUE );
+            $data['mobile_no']      = $this->input->post( 'mobile_no', TRUE );
+            $data['landline_no']    = $this->input->post( 'landline_no', TRUE );
+            $data['fax']            = $this->input->post( 'fax', TRUE );
+            $data['discount']       = $this->input->post( 'discount', TRUE );
+            $data['agent_sel']      = $this->input->post( 'agent', TRUE );
+            $data['custcat_sel']    = $this->input->post( 'customer_cat', TRUE );
+            $data['province_sel']   = $this->input->post( 'province', TRUE );
+            $data['status']         = $this->input->post( 'status', TRUE );
+            if($this->form_validation->run()) {
+               $customer_id = $this->customer_model->createCustomerInfo($data);     
+               if( !empty( $customer_id ) ){
+                  $this->session->set_flashdata( 'message', lang('successAdd') ); 
+                  redirect(base_url() . 'customer/index/' . $customer_id); 
+               } else {
+                  $this->session->set_flashdata( 'message', 'There was an error inserting the data.' ); 
+               }
+            } else {
+               $data['agent_list']    = listAgents();
+               $data['province_list'] = listProvinces();
+               $data['custcat_list']  = listCustomerCategory();
+               $this->session->set_flashdata( 'message', validation_errors() );                 
+               $this->load->view( 'customer/form', $data );
+            }
+         break;
+         case 'edit':
+            $this->form_validation->set_rules('customer_name','Customer Name','required|xss_clean');        
+            $this->form_validation->set_rules('address1','Address 1','required|xss_clean');        
+            $this->form_validation->set_rules('contact_name','Contact Name','required|xss_clean');        
+            $this->form_validation->set_rules('mobile_no','Mobile #','required|xss_clean');        
+            $this->form_validation->set_rules('landline_no','Landline #','required|xss_clean');        
+            $this->form_validation->set_rules('fax','Fax','required|xss_clean');        
+            $this->form_validation->set_rules('discount','Discount','required|xss_clean');        
+            $this->form_validation->set_rules('agent','Agent','required|xss_clean|callback_validateOpt');        
+            $this->form_validation->set_rules('customer_cat','Customer Category','required|xss_clean|callback_validateOpt');        
+            $this->form_validation->set_rules('province','Province','required|xss_clean|callback_validateOpt');        
+            $data['customer_id']    = $this->input->post( 'id', TRUE );
+            $data['customer_name']  = $this->input->post( 'customer_name', TRUE );
+            $data['address1']       = $this->input->post( 'address1', TRUE );
+            $data['address2']       = $this->input->post( 'address2', TRUE );
+            $data['address3']       = $this->input->post( 'address3', TRUE );
+            $data['contact_name']   = $this->input->post( 'contact_name', TRUE );
+            $data['mobile_no']      = $this->input->post( 'mobile_no', TRUE );
+            $data['landline_no']    = $this->input->post( 'landline_no', TRUE );
+            $data['fax']            = $this->input->post( 'fax', TRUE );
+            $data['discount']       = $this->input->post( 'discount', TRUE );
+            $data['agent_sel']      = $this->input->post( 'agent', TRUE );
+            $data['custcat_sel']    = $this->input->post( 'customer_cat', TRUE );
+            $data['province_sel']   = $this->input->post( 'province', TRUE );
+            $data['status']         = $this->input->post( 'status', TRUE );
+            $data['agent_list']    = listAgents();
+            $data['province_list'] = listProvinces();
+            $data['custcat_list']  = listCustomerCategory();
+            if($this->form_validation->run()) {
+               $this->customer_model->updateCustomerInfo($data);     
+               $data['system_message'] = lang( 'successAdd' );
+               $data['status'] = ($data['status']==TRUE) ? 'checked="checked"' : '';
+            } else {              
+               $data['system_message'] = validation_errors();
+               $data['status'] = ($data['status']==TRUE) ? 'checked="checked"' : '';
+            }
+            $this->load->view( 'customer/form', $data );  
+         break;
+         case 'del' :
+            $customer_id = $this->input->post('recid',TRUE);
+            $this->customer_model->deleteCustomerInfo($customer_id);
+         break;
+      }
+   }
+   
+}
+   
